@@ -1,0 +1,92 @@
+---
+# roles/common-config/tasks/main.yml
+
+- name: Gather the service facts
+  service_facts:
+
+- name: Ensure firewalld is stopped and disabled
+  systemd:
+    name: firewalld
+    state: stopped
+    enabled: no
+  when: '"firewalld" in services'
+
+- name: Update all packages excluding ansible and ansible-core
+  ansible.builtin.dnf:
+    name: "*"
+    state: latest
+    exclude: ansible,ansible-core
+
+- name: Configure NetworkManager to ignore certain interfaces
+  copy:
+    dest: /etc/NetworkManager/conf.d/cni.conf
+    content: |
+      [keyfile]
+      unmanaged-devices=interface-name:cni0;interface-name:flannel.1;interface-name:cali*
+    force: no  # This ensures idempotency by not overwriting the file if it already exists
+
+- name: Ensure NetworkManager is restarted
+  systemd:
+    name: NetworkManager
+    state: restarted
+    daemon_reload: yes
+
+- name: Disable swap
+  command: swapoff -a
+  args:
+    removes: /etc/fstab.swap.disabled  # This file does not exist but acts as a marker for idempotency
+  notify: Comment swap line from /etc/fstab
+
+- name: Install basic utilities
+  ansible.builtin.dnf:
+    name: 
+      - curl
+      - tar
+      - nano
+    state: present
+
+- name: Set system locale to en_US.UTF-8
+  locale_gen:
+    name: en_US.UTF-8
+    state: present
+
+- name: Set timezone to Europe/Ljubljana
+  ansible.builtin.timezone:
+    name: Europe/Ljubljana
+
+- name: Install and ensure chrony is enabled and running
+  ansible.builtin.dnf:
+    name: chrony
+    state: present
+  notify: 
+    - Ensure chronyd is enabled and running
+
+- name: Install NFS, Cryptsetup, and iSCSI utilities
+  ansible.builtin.dnf:
+    name: 
+      - nfs-utils
+      - cryptsetup
+      - iscsi-initiator-utils
+    state: present
+
+- name: Ensure iscsid.service is enabled and running
+  systemd:
+    name: iscsid.service
+    enabled: yes
+    state: started
+
+- name: Clean all dnf caches
+  ansible.builtin.command: dnf clean all
+  changed_when: false  # This tells Ansible that this task does not lead to a change in the system state
+
+# MAYBE -> WE WILL CHECK
+#- name: Configure /etc/hosts file
+#  template:
+#    src: hosts.j2
+#    dest: /etc/hosts
+#  become: yes
+
+#  - name: Set system hostname
+#  hostname:
+#    name: "{{ fqdn }}"
+#  become: yes

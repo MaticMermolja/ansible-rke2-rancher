@@ -1,0 +1,14 @@
+# roles/common-config/handlers/main.yml
+
+- name: Comment swap line from /etc/fstab
+  lineinfile:
+    path: /etc/fstab
+    regexp: '^([^#].*\sswap\s.*)$'
+    line: '#\1'
+    backrefs: yes
+
+- name: Ensure chronyd is enabled and running
+  systemd:
+    name: chronyd
+    state: started
+    enabled: yes

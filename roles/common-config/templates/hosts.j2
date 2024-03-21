@@ -1,0 +1,8 @@
+# roles/common-config/templates/hosts.j2
+127.0.0.1   localhost
+::1         localhost
+
+# Ansible managed hosts
+{% for host in groups['all'] %}
+{{ hostvars[host].ansible_host }} {{ hostvars[host].fqdn }} {{ hostvars[host].inventory_hostname }}
+{% endfor %}

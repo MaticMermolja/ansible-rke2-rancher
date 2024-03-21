@@ -1,0 +1,10 @@
+---
+# site.yml
+
+- name: Apply Common Configurations to All Nodes
+  hosts: all
+  become: yes
+  roles:
+    - common-config
+
+# Additional plays can be added here for other roles like rke2-server or rke2-worker if needed
