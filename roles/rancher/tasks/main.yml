@@ -1,0 +1,57 @@
+---
+
+- name: Install Helm
+  ansible.builtin.get_url:
+    url: "https://get.helm.sh/helm-{{ helm_version }}-linux-amd64.tar.gz"
+    dest: "/tmp/helm-{{ helm_version }}-linux-amd64.tar.gz"
+    mode: '0755'
+  become: true
+
+- name: Extract Helm
+  ansible.builtin.unarchive:
+    src: "/tmp/helm-{{ helm_version }}-linux-amd64.tar.gz"
+    dest: "/tmp"
+    remote_src: yes
+    creates: "/tmp/linux-amd64/helm"
+  become: true
+
+- name: Move Helm binary to /usr/local/bin
+  ansible.builtin.command:
+    cmd: mv /tmp/linux-amd64/helm /usr/local/bin/helm
+    creates: "/usr/local/bin/helm"
+  become: true
+
+- name: Add Helm Repositories
+  ansible.builtin.shell: |
+    helm repo add jetstack https://charts.jetstack.io
+    helm repo add rancher-stable https://releases.rancher.com/server-charts/stable
+    helm repo update
+  args:
+    executable: /bin/bash
+  become: true
+
+- name: Install cert-manager
+  ansible.builtin.shell: |
+    helm upgrade -i cert-manager jetstack/cert-manager -n cert-manager --create-namespace --set installCRDs=true --version "{{ cert_manager_version }}"
+  args:
+    executable: /bin/bash
+  become: true
+
+- name: Create cattle-system namespace
+  ansible.builtin.k8s:
+    kubeconfig: "/etc/rancher/rke2/rke2.yaml"
+    name: cattle-system
+    api_version: v1
+    kind: Namespace
+    state: present
+
+- name: Install Rancher
+  ansible.builtin.shell: |
+    helm install rancher rancher-stable/rancher \
+      --namespace cattle-system \
+      --set hostname={{ rancher_hostname }} \
+      --set bootstrapPassword={{ rancher_bootstrap_password }} \
+      --set replicas={{ rancher_replica_count }}
+  args:
+    executable: /bin/bash
+  become: true

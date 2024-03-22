@@ -1,0 +1,14 @@
+# Adjust as necessary for compatibility
+helm_version: v3.7.1
+
+# Replace with your FQDN
+rancher_hostname: "rancher.example.com"  
+
+# You will be prompted to change this password on first login to Rancher dashboard
+rancher_bootstrap_password: "admin" 
+
+# Number of replicas you want to assign to rancher
+rancher_replica_count: 3
+
+# Specify the version compatible with your Rancher version
+cert_manager_version: "v1.5.3"  

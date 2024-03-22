@@ -12,6 +12,12 @@
   roles:
     - rke2-server
 
+- name: Install Rancher on designated nodes
+  hosts: rancher_nodes
+  become: true
+  roles:
+    - rancher-setup
+
 - name: Deploy RKE2 Worker Nodes
   hosts: worker_nodes
   roles:

@@ -15,6 +15,9 @@ domain=$(echo "$main_fqdn" | sed 's/^kubernetes1\.//') # Extract domain from FQD
 read -rp "How many server nodes will you use? " server_count
 read -rp "How many worker nodes will you use? " worker_count
 
+# Initialize array to hold the names of all nodes
+declare -a all_nodes=()
+
 # Start generating hosts.ini content
 {
 echo "[all:vars]"
@@ -25,11 +28,13 @@ echo "[server_nodes]"
 # Loop for server nodes
 for ((i = 1; i <= server_count; i++)); do
     read -rp "What is the IP of server node $i (FQDN: kubernetes${i}.$domain)? " ip
+    node_name="server0$i"
+    all_nodes+=("$node_name") # Add server node name to array
     if [ "$i" -eq 1 ]; then
         # Assuming the first server node is where Ansible is running
-        echo "server0$i ansible_host=$ip fqdn=kubernetes${i}.$domain ansible_connection=local" >> hosts.ini
+        echo "$node_name ansible_host=$ip fqdn=kubernetes${i}.$domain ansible_connection=local" >> hosts.ini
     else
-        echo "server0$i ansible_host=$ip fqdn=kubernetes${i}.$domain" >> hosts.ini
+        echo "$node_name ansible_host=$ip fqdn=kubernetes${i}.$domain" >> hosts.ini
     fi
 done
 
@@ -40,7 +45,25 @@ echo "[worker_nodes]" >> hosts.ini
 for ((i = 1; i <= worker_count; i++)); do
     fqdn="kubernetes$((i + server_count)).$domain"
     read -rp "What is the IP of worker node $i (FQDN: $fqdn)? " ip
-    echo "worker0$i ansible_host=$ip fqdn=$fqdn" >> hosts.ini
+    node_name="worker0$i"
+    all_nodes+=("$node_name") # Add worker node name to array
+    echo "$node_name ansible_host=$ip fqdn=$fqdn" >> hosts.ini
+done
+
+# Ask which nodes to designate as Rancher nodes
+echo "Select the nodes to be designated as Rancher nodes by entering their numbers separated by spaces (e.g., 1 2 3):"
+for i in "${!all_nodes[@]}"; do
+    echo "$((i + 1))) ${all_nodes[$i]}"
+done
+
+read -rp "Enter selections: " -a selections
+
+# Write selected Rancher nodes to hosts.ini
+echo "" >> hosts.ini
+echo "[rancher_nodes]" >> hosts.ini
+for sel in "${selections[@]}"; do
+    index=$((sel - 1))
+    echo "${all_nodes[$index]}" >> hosts.ini
 done
 
 echo "hosts.ini file has been created successfully."
