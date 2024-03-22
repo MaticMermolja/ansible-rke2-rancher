@@ -1,5 +1,9 @@
 ---
 
+- name: Include shared default variables
+  ansible.builtin.include_vars:
+    file: "../../../shared/defaults.yml"
+
 - name: Install RKE2 worker dependencies
   ansible.builtin.package:
     name:

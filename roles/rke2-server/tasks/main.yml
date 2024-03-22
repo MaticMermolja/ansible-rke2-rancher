@@ -1,5 +1,9 @@
 ---
 
+- name: Include shared default variables
+  ansible.builtin.include_vars:
+    file: "../../../shared/defaults.yml"
+
 - name: Download RKE2 installation script
   ansible.builtin.get_url:
     url: "{{ rke2_install_bash_url }}"
