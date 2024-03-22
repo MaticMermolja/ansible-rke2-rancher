@@ -1,5 +1,4 @@
 ---
-# roles/common-config/tasks/main.yml
 
 - name: Gather the service facts
   service_facts:
@@ -46,9 +45,11 @@
     state: present
 
 - name: Set system locale to en_US.UTF-8
-  locale_gen:
-    name: en_US.UTF-8
-    state: present
+  ansible.builtin.command:
+    cmd: localectl set-locale LANG=en_US.UTF-8
+  args:
+    creates: /etc/locale.conf
+  become: true
 
 - name: Set timezone to Europe/Ljubljana
   ansible.builtin.timezone:
@@ -77,4 +78,4 @@
 
 - name: Clean all dnf caches
   ansible.builtin.command: dnf clean all
-  changed_when: false  # This tells Ansible that this task does not lead to a change in the system state
+  changed_when: false

@@ -10,12 +10,10 @@
 - name: Deploy RKE2 Server Nodes
   hosts: server_nodes
   roles:
-    - common-config
     - rke2-server
 
 - name: Deploy RKE2 Worker Nodes
   hosts: worker_nodes
   roles:
-    - common-config
     - rke2-worker
 
