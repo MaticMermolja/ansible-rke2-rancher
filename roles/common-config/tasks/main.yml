@@ -23,7 +23,7 @@
     content: |
       [keyfile]
       unmanaged-devices=interface-name:cni0;interface-name:flannel.1;interface-name:cali*
-    force: no  # This ensures idempotency by not overwriting the file if it already exists
+    force: no
 
 - name: Ensure NetworkManager is restarted
   systemd:
@@ -34,7 +34,7 @@
 - name: Disable swap
   command: swapoff -a
   args:
-    removes: /etc/fstab.swap.disabled  # This file does not exist but acts as a marker for idempotency
+    removes: /etc/fstab.swap.disabled
   notify: Comment swap line from /etc/fstab
 
 - name: Install basic utilities
@@ -78,15 +78,3 @@
 - name: Clean all dnf caches
   ansible.builtin.command: dnf clean all
   changed_when: false  # This tells Ansible that this task does not lead to a change in the system state
-
-# MAYBE -> WE WILL CHECK
-#- name: Configure /etc/hosts file
-#  template:
-#    src: hosts.j2
-#    dest: /etc/hosts
-#  become: yes
-
-#  - name: Set system hostname
-#  hostname:
-#    name: "{{ fqdn }}"
-#  become: yes

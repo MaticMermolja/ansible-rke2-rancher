@@ -1,0 +1,106 @@
+---
+
+- name: Download RKE2 installation script
+  ansible.builtin.get_url:
+    url: "{{ rke2_install_bash_url }}"
+    dest: "{{ rke2_install_script_dir }}/rke2.sh"
+    mode: 0700
+
+- name: Create RKE2 artifacts folder
+  ansible.builtin.file:
+    path: "{{ rke2_artifact_path }}"
+    state: directory
+    mode: 0700
+
+- name: Download sha256 checksum file for RKE2 artifacts
+  ansible.builtin.get_url:
+    url: "{{ rke2_artifact_url }}/{{ rke2_version }}/sha256sum-{{ rke2_architecture }}.txt"
+    dest: "{{ rke2_artifact_path }}/sha256sum-{{ rke2_architecture }}.txt"
+    mode: 0644
+    timeout: 30
+
+# Gather service facts to use in conditions for service management
+- name: Populate service facts to use in later tasks
+  ansible.builtin.service_facts:
+
+# Determine if /usr/local is writable, influencing where RKE2 binaries will be installed
+- name: Get stats of the /usr/local to check write permissions
+  ansible.builtin.stat:
+    path: /usr/local
+  register: usr_local
+
+# Set the path where RKE2 binary will be installed based on write permissions of /usr/local
+- name: Set RKE2 binary installation path based on /usr/local writeability
+  ansible.builtin.set_fact:
+    rke2_bin_path: "{{ '/usr/local/bin/rke2' if usr_local.stat.writeable else '/opt/rke2/bin/rke2' }}"
+
+# Check the installed and running version of RKE2 to decide if installation or upgrade is needed
+- name: Check the currently installed and running RKE2 version
+  ansible.builtin.shell: |
+    set -euo pipefail
+
+    rke2_bin_path="{{ rke2_bin_path }}"
+    rke2_service_name="{{ rke2_service_name }}"
+    rke2_version="{{ rke2_version }}"
+
+    if [ -f "$rke2_bin_path" ]; then
+      installed_version="$($rke2_bin_path --version | grep -E "rke2 version" | awk '{print $3}')"
+    else
+      installed_version="not installed"
+    fi
+
+    if systemctl is-active --quiet $rke2_service_name && rke2_service_pid=$(systemctl show $rke2_service_name --property MainPID --value); then
+      rke2_bin_path="$(realpath "/proc/$rke2_service_pid/exe")"
+    fi
+
+    # Linux appends the target of removed proc exe with ' (deleted)', making the path unavailable.
+    if [ -f "$rke2_bin_path" ]; then
+      running_version="$($rke2_bin_path --version | grep -E "rke2 version" | awk '{print $3}')"
+    elif [ "$installed_version" = "not installed" ]; then
+      running_version="$rke2_version"
+    else
+      running_version="outdated"
+    fi
+
+    echo "{\"installed_version\":\"$installed_version\",\"running_version\":\"$running_version\"}"
+  args:
+    executable: /bin/bash
+  register: versions_check
+  changed_when: false
+
+# Set facts for the installed and running RKE2 versions based on the previous check
+- name: Set facts for RKE2 installed and running versions
+  ansible.builtin.set_fact:
+    installed_version: "{{ versions.installed_version }}"
+    running_version: "{{ versions.running_version }}"
+  vars:
+    versions: "{{ versions_check.stdout | from_json }}"
+
+# Run the RKE2 installation or upgrade script if the current version differs from the desired version
+- name: Execute the RKE2 installation/upgrade script if versions differ
+  ansible.builtin.command:
+    cmd: "{{ rke2_install_script_dir }}/rke2.sh"
+  environment:
+    INSTALL_RKE2_VERSION: "{{ rke2_version }}"
+  changed_when: false
+  when: rke2_version != installed_version
+
+- name: Start RKE2 server service
+  ansible.builtin.systemd:
+    name: rke2-server.service
+    state: started
+    enabled: true
+  environment:
+    RKE2_TOKEN: "{{ rke2_token }}"
+  when: rke2_version != installed_version
+
+- name: Check RKE2 server readiness
+  ansible.builtin.shell: |
+    {{ rke2_data_path }}/bin/kubectl --kubeconfig /etc/rancher/rke2/rke2.yaml get nodes --no-headers | grep " Ready "
+  args:
+    executable: /bin/bash
+  register: server_ready
+  retries: 30
+  delay: 10
+  until: server_ready.stdout.find(" Ready ") != -1
+  when: rke2_version != installed_version

@@ -1,0 +1,21 @@
+- name: Start RKE2 worker service
+  ansible.builtin.systemd:
+    name: rke2-agent.service
+    state: started
+    enabled: true
+  environment:
+    RKE2_URL: "https://{{ rke2_server_host }}:9345"
+    RKE2_TOKEN: "{{ rke2_server_token.stdout }}"
+  when: inventory_hostname in groups['rke2_worker']
+
+- name: Check RKE2 worker node readiness
+  ansible.builtin.shell: |
+    {{ rke2_data_path }}/bin/kubectl --kubeconfig /etc/rancher/rke2/rke2.yaml get node "{{ inventory_hostname }}" -o jsonpath="{.status.conditions[?(@.type=='Ready')].status}"
+  args:
+    executable: /bin/bash
+  register: worker_ready
+  retries: 20
+  delay: 15
+  until: worker_ready.stdout == "True"
+  delegate_to: "{{ rke2_server_host }}"
+  when: inventory_hostname in groups['rke2_worker']
