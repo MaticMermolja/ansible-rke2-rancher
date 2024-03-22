@@ -1,0 +1,47 @@
+---
+
+- name: Install RKE2 worker dependencies
+  ansible.builtin.package:
+    name:
+      - curl
+    state: present
+
+- name: Download and run the RKE2 installation script for worker nodes
+  ansible.builtin.shell: |
+    curl -sfL https://get.rke2.io | INSTALL_RKE2_VERSION="{{ rke2_version }}" INSTALL_RKE2_TYPE=agent sh -
+  args:
+    executable: /bin/bash
+  environment:
+    INSTALL_RKE2_CHANNEL: "{{ rke2_channel | default('stable') }}"
+  when: rke2_version is defined and rke2_channel is defined
+  become: true
+
+- name: Create the RKE2 configuration directory
+  ansible.builtin.file:
+    path: /etc/rancher/rke2/
+    state: directory
+    mode: '0755'
+  become: true
+
+- name: Configure RKE2 agent to connect to the server
+  ansible.builtin.copy:
+    dest: /etc/rancher/rke2/config.yaml
+    content: |
+      server: https://{{ rke2_server_ip }}:9345
+      token: {{ rke2_token }}
+    mode: '0644'
+  become: true
+
+- name: Enable and start the RKE2 agent service
+  ansible.builtin.systemd:
+    name: rke2-agent.service
+    enabled: yes
+    state: started
+  become: true
+
+- name: Wait for the RKE2 agent to be ready
+  ansible.builtin.wait_for:
+    path: /var/lib/rancher/rke2/agent/kubelet.kubeconfig
+    state: present
+    timeout: 300
+  become: true
