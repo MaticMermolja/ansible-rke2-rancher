@@ -2,7 +2,7 @@
 helm_version: v3.7.1
 
 # Replace with your FQDN
-rancher_hostname: "kubernetes1.rekono.local"  
+rancher_hostname: "kubernetes1.tajkun.local"  
 
 # You will be prompted to change this password on first login to Rancher dashboard
 rancher_bootstrap_password: "admin" 

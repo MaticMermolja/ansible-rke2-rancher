@@ -34,28 +34,29 @@
       become: true
   when: helm_version_check.stdout is not search(helm_version)
 
-- name: Ensure Helm repositories are added
+- name: Check existing Helm repositories
   ansible.builtin.command:
     cmd: helm repo list --kubeconfig "/etc/rancher/rke2/rke2.yaml"
   register: helm_repo_list
+  failed_when: helm_repo_list.rc not in [0,1]
   changed_when: false
-  ignore_errors: true
+  check_mode: no
 
-- name: Add Helm repositories if missing
-  block:
-    - name: Add Jetstack repository
-      ansible.builtin.shell:
-        cmd: helm repo add jetstack https://charts.jetstack.io --kubeconfig "/etc/rancher/rke2/rke2.yaml"
-      when: "'jetstack' not in helm_repo_list.stdout"
+- name: Add Jetstack repository if missing
+  ansible.builtin.shell:
+    cmd: helm repo add jetstack https://charts.jetstack.io --kubeconfig "/etc/rancher/rke2/rke2.yaml"
+  when: "'jetstack' not in helm_repo_list.stdout"
+  become: true
 
-    - name: Add Rancher-stable repository
-      ansible.builtin.shell:
-        cmd: helm repo add rancher-stable https://releases.rancher.com/server-charts/stable --kubeconfig "/etc/rancher/rke2/rke2.yaml"
-      when: "'rancher-stable' not in helm_repo_list.stdout"
+- name: Add Rancher-stable repository if missing
+  ansible.builtin.shell:
+    cmd: helm repo add rancher-stable https://releases.rancher.com/server-charts/stable --kubeconfig "/etc/rancher/rke2/rke2.yaml"
+  when: "'rancher-stable' not in helm_repo_list.stdout"
+  become: true
 
-    - name: Update Helm repositories
-      ansible.builtin.shell:
-        cmd: helm repo update --kubeconfig "/etc/rancher/rke2/rke2.yaml"
+- name: Update Helm repositories
+  ansible.builtin.shell:
+    cmd: helm repo update --kubeconfig "/etc/rancher/rke2/rke2.yaml"
   become: true
 
 - name: Install cert-manager
