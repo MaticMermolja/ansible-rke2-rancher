@@ -6,19 +6,17 @@
 
 - name: Install RKE2 worker dependencies
   ansible.builtin.package:
-    name:
-      - curl
+    name: curl
     state: present
+  become: true
 
 - name: Download and run the RKE2 installation script for worker nodes
-  ansible.builtin.shell: |
-    curl -sfL https://get.rke2.io | INSTALL_RKE2_VERSION="{{ rke2_version }}" INSTALL_RKE2_TYPE=agent sh -
-  args:
-    executable: /bin/bash
-  environment:
-    INSTALL_RKE2_CHANNEL: "{{ rke2_channel | default('stable') }}"
-  when: rke2_version is defined and rke2_channel is defined
+  ansible.builtin.shell:
+    cmd: "curl -sfL https://get.rke2.io | INSTALL_RKE2_VERSION='{{ rke2_version }}' INSTALL_RKE2_TYPE=agent sh -"
+    environment:
+      INSTALL_RKE2_CHANNEL: "{{ rke2_channel | default('stable') }}"
   become: true
+  when: rke2_version is defined and rke2_channel is defined
 
 - name: Create the RKE2 configuration directory
   ansible.builtin.file:
@@ -27,14 +25,21 @@
     mode: '0755'
   become: true
 
+- name: Fetch RKE2 Server Token from the designated server node
+  ansible.builtin.slurp:
+    src: /var/lib/rancher/rke2/server/node-token
+  register: rke2_server_token
+  delegate_to: "{{ groups['server_nodes'][0] }}"
+  run_once: true
+
 - name: Configure RKE2 agent to connect to the server
-  ansible.builtin.copy:
+  ansible.builtin.template:
+    src: rke2-agent-config.yaml.j2
     dest: /etc/rancher/rke2/config.yaml
-    content: |
-      server: https://{{ rke2_server_ip }}:9345
-      token: {{ rke2_token }}
-    mode: '0644'
   become: true
+  vars:
+    rke2_server_ip: "{{ hostvars[groups['server_nodes'][0]]['ansible_host'] }}"
+    rke2_token: "{{ (rke2_server_token.content | b64decode).trim }}"
 
 - name: Enable and start the RKE2 agent service
   ansible.builtin.systemd:
