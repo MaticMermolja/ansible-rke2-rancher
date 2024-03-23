@@ -1,10 +1,11 @@
 # RKE2 version
 rke2_version: v1.27.11+rke2r1
 
+# RKE2 channel
+rke2_channel: stable
+
 # Pre-shared secret token that other server or agent nodes will register with when connecting to the cluster
 rke2_token: defaultSecret12345
-
-rke2_channel: stable
 
 # URL to RKE2 install bash script
 rke2_install_bash_url: https://get.rke2.io

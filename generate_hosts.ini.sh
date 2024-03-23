@@ -64,15 +64,15 @@ done
 
 read -rp "Enter selections: " -a selections
 
-# Write selected Rancher nodes to hosts.ini
-echo "" >> hosts.ini
-echo "[rancher_nodes]" >> hosts.ini
+# Write selected Rancher nodes to ./inventory/hosts.ini
+echo "" >> ./inventory/hosts.ini
+echo "[rancher_nodes]" >> ./inventory/hosts.ini
 for sel in "${selections[@]}"; do
     index=$((sel - 1))
-    echo "${all_nodes[$index]}" >> hosts.ini
+    echo "${all_nodes[$index]}" >> ./inventory/hosts.ini
 done
 
-echo "hosts.ini file has been created successfully."
+echo "./inventory/hosts.ini file has been created successfully."
 
 # Update /etc/hosts with entries for all nodes
 for i in "${!all_nodes[@]}"; do

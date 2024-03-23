@@ -1,0 +1,3 @@
+rke2_server_ip: "167.172.185.153"
+
+rke2_service_name: "rke2-agent"

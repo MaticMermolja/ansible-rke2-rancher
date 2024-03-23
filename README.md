@@ -2,7 +2,9 @@
 
 This Ansible script configures Oracle Linux 8 / CentOS 8 systems and installs RKE2 alongside Rancher.
 
-## Prerequisites
+## Quick start
+
+### Prerequisites
 
 Ensure the following packages and Python modules are installed on your master node:
 
@@ -20,14 +22,6 @@ pip3 install kubernetes
 
 Make sure the master node has SSH access to all other nodes in the configuration.
 
-## Script Overview
-This project contains several roles:
-- `system-config`: Configures the OS and installs required packages.
-- `rke2-server`: Sets up server nodes and installs RKE2 on them.
-- `rke2-worker`: Sets up worker nodes and installs RKE2 on them.
-- `rancher`: Installs Rancher on selected nodes.
-
-## Quick start
 1. Before running the playbook, execute generate_hosts.ini.sh from the master node:
 ```bash
 sh ./generate_hosts.ini.sh
@@ -40,3 +34,9 @@ Follow the script instructions, entering all required IP addresses and FQDNs. Th
 ```bash
 ansible-playbook -i inventory/hosts.ini site.yml
 ```
+## Script Overview
+This project contains several roles:
+- `system-config`: Configures the OS and installs required packages.
+- `rke2-server`: Sets up server nodes and installs RKE2 on them.
+- `rke2-worker`: Sets up worker nodes and installs RKE2 on them.
+- `rancher`: Installs Rancher on selected nodes.
