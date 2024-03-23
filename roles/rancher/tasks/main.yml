@@ -1,40 +1,72 @@
 ---
+- name: Check if Helm is installed at the desired version
+  ansible.builtin.command: helm version --short
+  register: helm_version_check
+  failed_when: false
+  changed_when: false
+  check_mode: no
 
-- name: Install Helm
-  ansible.builtin.get_url:
-    url: "https://get.helm.sh/helm-{{ helm_version }}-linux-amd64.tar.gz"
-    dest: "/tmp/helm-{{ helm_version }}-linux-amd64.tar.gz"
-    mode: '0755'
-  become: true
+- name: Set Helm installation required flag
+  set_fact:
+    helm_install_required: "{{ installed_helm_version is failed or helm_version not in installed_helm_version.stdout }}"
 
-- name: Extract Helm
-  ansible.builtin.unarchive:
-    src: "/tmp/helm-{{ helm_version }}-linux-amd64.tar.gz"
-    dest: "/tmp"
-    remote_src: yes
-    creates: "/tmp/linux-amd64/helm"
-  become: true
+- name: Install Helm if not present at desired version
+  block:
+    - name: Download Helm
+      ansible.builtin.get_url:
+        url: "https://get.helm.sh/helm-{{ helm_version }}-linux-amd64.tar.gz"
+        dest: "/tmp/helm-{{ helm_version }}-linux-amd64.tar.gz"
+        mode: '0755'
+      become: true
 
-- name: Move Helm binary to /usr/local/bin
-  ansible.builtin.command:
-    cmd: mv /tmp/linux-amd64/helm /usr/local/bin/helm
-    creates: "/usr/local/bin/helm"
-  become: true
+    - name: Extract Helm
+      ansible.builtin.unarchive:
+        src: "/tmp/helm-{{ helm_version }}-linux-amd64.tar.gz"
+        dest: "/tmp"
+        remote_src: yes
+        creates: "/tmp/linux-amd64/helm"
+      become: true
 
-- name: Add Helm Repositories
+    - name: Move Helm binary to /usr/local/bin
+      ansible.builtin.command:
+        cmd: mv /tmp/linux-amd64/helm /usr/local/bin/helm
+        creates: "/usr/local/bin/helm"
+      become: true
+  when: helm_version_check.stdout is not search(helm_version)
+
+- name: Ensure Helm repositories are added
+  ansible.builtin.command: helm repo list
+  register: helm_repo_list
+  changed_when: false
+  ignore_errors: yes
+
+- name: Add Helm repositories if missing
   ansible.builtin.shell: |
-    helm repo add jetstack https://charts.jetstack.io
-    helm repo add rancher-stable https://releases.rancher.com/server-charts/stable
-    helm repo update
-  args:
-    executable: /bin/bash
+    {{ item.repo_add_command }}
+  loop:
+    - { name: 'jetstack', url: 'https://charts.jetstack.io', repo_add_command: 'helm repo add jetstack https://charts.jetstack.io' }
+    - { name: 'rancher-stable', url: 'https://releases.rancher.com/server-charts/stable', repo_add_command: 'helm repo add rancher-stable https://releases.rancher.com/server-charts/stable' }
+  loop_control:
+    loop_var: item
+  when: 
+    - helm_repo_list is failed or item.name not in helm_repo_list.stdout
   become: true
+  notify: Update Helm repositories
 
 - name: Install cert-manager
   ansible.builtin.shell: |
     helm upgrade -i cert-manager jetstack/cert-manager -n cert-manager --create-namespace --set installCRDs=true --version "{{ cert_manager_version }}"
   args:
     executable: /bin/bash
+  become: true
+
+- name: Wait for all Cert Manager pods to be running
+  ansible.builtin.shell: |
+    kubectl get pods --namespace cert-manager --field-selector=status.phase!=Running | grep -v NAME || true
+  register: cert_manager_pods
+  until: cert_manager_pods.stdout == ""
+  retries: 30
+  delay: 10
   become: true
 
 - name: Create cattle-system namespace

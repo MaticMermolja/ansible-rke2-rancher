@@ -5,7 +5,7 @@
   hosts: all
   become: yes
   roles:
-    - common-config
+    - system-config
 
 - name: Deploy RKE2 Server Nodes
   hosts: server_nodes
@@ -16,7 +16,7 @@
   hosts: rancher_nodes
   become: true
   roles:
-    - rancher-setup
+    - rancher
 
 - name: Deploy RKE2 Worker Nodes
   hosts: worker_nodes

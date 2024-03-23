@@ -15,8 +15,9 @@ domain=$(echo "$main_fqdn" | sed 's/^kubernetes1\.//') # Extract domain from FQD
 read -rp "How many server nodes will you use? " server_count
 read -rp "How many worker nodes will you use? " worker_count
 
-# Initialize array to hold the names of all nodes
+# Initialize array to hold the names of all nodes and their IPs
 declare -a all_nodes=()
+declare -a all_ips=()
 
 # Start generating hosts.ini content
 {
@@ -30,6 +31,7 @@ for ((i = 1; i <= server_count; i++)); do
     read -rp "What is the IP of server node $i (FQDN: kubernetes${i}.$domain)? " ip
     node_name="server0$i"
     all_nodes+=("$node_name") # Add server node name to array
+    all_ips+=("$ip") # Add server node IP to array
     if [ "$i" -eq 1 ]; then
         # Assuming the first server node is where Ansible is running
         echo "$node_name ansible_host=$ip fqdn=kubernetes${i}.$domain ansible_connection=local" >> hosts.ini
@@ -47,6 +49,7 @@ for ((i = 1; i <= worker_count; i++)); do
     read -rp "What is the IP of worker node $i (FQDN: $fqdn)? " ip
     node_name="worker0$i"
     all_nodes+=("$node_name") # Add worker node name to array
+    all_ips+=("$ip") # Add worker node IP to array
     echo "$node_name ansible_host=$ip fqdn=$fqdn" >> hosts.ini
 done
 
@@ -67,3 +70,17 @@ for sel in "${selections[@]}"; do
 done
 
 echo "hosts.ini file has been created successfully."
+
+# Update /etc/hosts with entries for all nodes
+for i in "${!all_nodes[@]}"; do
+    fqdn="${all_nodes[$i]}.$domain"
+    ip="${all_ips[$i]}"
+    if ! grep -q "$fqdn" /etc/hosts; then
+        echo "Adding $fqdn ($ip) to /etc/hosts"
+        echo "$ip $fqdn" | sudo tee -a /etc/hosts
+    else
+        echo "$fqdn is already in /etc/hosts"
+    fi
+done
+
+echo "/etc/hosts updated"

@@ -6,8 +6,6 @@ rke2_token: defaultSecret12345
 
 rke2_channel: stable
 
-
-
 # URL to RKE2 install bash script
 rke2_install_bash_url: https://get.rke2.io
 
