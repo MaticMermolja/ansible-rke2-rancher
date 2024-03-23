@@ -59,6 +59,17 @@
     cmd: helm repo update --kubeconfig "/etc/rancher/rke2/rke2.yaml"
   become: true
 
+- name: Ensure Ingress Controller is Ready
+  ansible.builtin.shell:
+    cmd: kubectl --kubeconfig "/etc/rancher/rke2/rke2.yaml" get pods -n kube-system -l app.kubernetes.io/instance=rke2-ingress-nginx --field-selector=status.phase=Running | grep -v NAME
+  register: ingress_ready
+  until: ingress_ready.stdout != ""
+  retries: 30
+  delay: 10
+  become: true
+  failed_when: ingress_ready.rc != 0
+  check_mode: no
+
 - name: Install cert-manager
   ansible.builtin.shell:
     cmd: helm upgrade -i cert-manager jetstack/cert-manager -n cert-manager --create-namespace --set installCRDs=true --version "{{ cert_manager_version }}" --kubeconfig "/etc/rancher/rke2/rke2.yaml"
@@ -85,14 +96,22 @@
 
 - name: Check if Rancher is already installed
   ansible.builtin.shell:
-    cmd: helm list -n cattle-system --kubeconfig "/etc/rancher/rke2/rke2.yaml" | grep rancher
-  register: rancher_check
+    cmd: helm list -n cattle-system --kubeconfig "/etc/rancher/rke2/rke2.yaml"
+  register: rancher_helm_list
   failed_when: false
   changed_when: false
   become: true
 
+- name: Set flag to determine Rancher installation necessity
+  set_fact:
+    rancher_already_installed: "{{ 'rancher' in rancher_helm_list.stdout_lines }}"
+
+- name: Debug - Show if Rancher installation is necessary
+  ansible.builtin.debug:
+    msg: "Is Rancher already installed? {{ rancher_already_installed }}"
+
 - name: Install Rancher
-  when: rancher_check.stdout == ""
+  when: not rancher_already_installed
   block:
     - name: Install Rancher via Helm
       ansible.builtin.shell:
