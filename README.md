@@ -1,6 +1,6 @@
 # Ansible RKE2 + Rancher Configuration
 
-This Ansible script configures Oracle Linux 8 / CentOS 8 systems to install RKE2 alongside Rancher.
+This Ansible script configures Oracle Linux 8 / CentOS 8 systems and installs RKE2 alongside Rancher.
 
 ## Prerequisites
 
@@ -28,14 +28,15 @@ This project contains several roles:
 - `rancher`: Installs Rancher on selected nodes.
 
 ## How to Use?
-1. Before running the playbook, execute generate_hosts.ini.sh from the master node:
+- Before running the playbook, execute generate_hosts.ini.sh from the master node:
 ```bash
 sh ./generate_hosts.ini.sh
 ```
 Follow the script instructions, entering all required IP addresses and FQDNs. This script will configure your hosts.ini file and update /etc/hosts on your master node.
-2. Copy the configured hosts to all other nodes in your setup.
-3. Update default variables in the defaults directory to match your expectations and configuration.
-4. Run the playbook:
+
+- Copy the configured hosts to all other nodes in your setup.
+- Update default variables in the defaults directory to match your expectations and configuration.
+- Run the playbook:
 ```bash
 ansible-playbook -i inventory/hosts.ini site.yml
 ```
