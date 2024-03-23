@@ -1,9 +1,4 @@
 ---
-#ln -s $(find /var/lib/rancher/rke2/data/ -name kubectl) /usr/local/bin/kubectl
-#$export KUBECONFIG=/etc/rancher/rke2/rke2.yaml
-#echo 'export KUBECONFIG=/etc/rancher/rke2/rke2.yaml' >> /root/.bashrc
-#source /root/.bashrc
-
 - name: Include shared default variables
   ansible.builtin.include_vars:
     file: "../../../shared/defaults.yml"
@@ -112,3 +107,28 @@
   delay: 10
   until: server_ready.stdout.find(" Ready ") != -1
   when: rke2_version != installed_version
+
+- name: Find the kubectl binary path
+  ansible.builtin.command: find /var/lib/rancher/rke2/bin/ -name kubectl
+  register: kubectl_path
+  changed_when: false
+
+- name: Create a symbolic link for kubectl
+  ansible.builtin.file:
+    src: "{{ kubectl_path.stdout }}"
+    dest: /usr/local/bin/kubectl
+    state: link
+  become: true
+
+- name: Set KUBECONFIG environment variable
+  ansible.builtin.lineinfile:
+    path: /root/.bashrc
+    line: 'export KUBECONFIG=/etc/rancher/rke2/rke2.yaml'
+    create: yes
+  become: true
+
+- name: Reload .bashrc to apply changes
+  ansible.builtin.shell: source /root/.bashrc
+  args:
+    executable: /bin/bash
+  become: true
