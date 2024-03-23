@@ -86,4 +86,4 @@ for i in "${!all_nodes[@]}"; do
     fi
 done
 
-echo "/etc/hosts updated"
+echo "/etc/hosts updated"[
