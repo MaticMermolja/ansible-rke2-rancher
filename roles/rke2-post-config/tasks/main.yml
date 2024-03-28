@@ -1,0 +1,26 @@
+- name: Check readiness of all server and worker nodes
+  community.kubernetes.k8s_info:
+    kind: Node
+    label_selectors: 
+      - "node-role.kubernetes.io/master"
+      - "node-role.kubernetes.io/worker"
+  register: all_nodes
+
+- name: Ensure all nodes are Ready
+  assert:
+    that: "{{ item.status.conditions | json_query('[?type==`Ready`].status') | first == 'True' }}"
+    loop: "{{ all_nodes.resources }}"
+    loop_control:
+      label: "{{ item.metadata.name }}"
+    fail_msg: "{{ item.metadata.name }} is not ready"
+  when: all_nodes.resources | length > 0
+
+- name: Label worker nodes
+  command: >
+    kubectl label nodes {{ item }} node-role.kubernetes.io/worker=worker --overwrite=true
+  loop: "{{ groups['worker_nodes'] }}"
+  loop_control:
+    loop_var: item
+
+# ADD BOOTSTRAPING OF FLUX CD
+# OTHER GIT CONFIGURATIONS
